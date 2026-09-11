@@ -3,8 +3,14 @@ require('dotenv').config();
 const { Client, Events, GatewayIntentBits, SlashCommandBuilder } = require('discord.js');
 
 function readToken(name) {
-  const value = process.env[name]?.trim();
-  return value?.replace(/^['"]|['"]$/g, '').trim();
+  let value = process.env[name]?.trim();
+  if (!value) {
+    return undefined;
+  }
+
+  value = value.replace(/^['"]|['"]$/g, '').trim();
+  value = value.replace(/^Bot\s+/i, '').replace(/,\s*$/, '').trim();
+  return value;
 }
 
 const botTokens = Array.from({ length: 5 }, (_, index) => ({

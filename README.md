@@ -29,7 +29,7 @@ This is a Discord background worker, not a web service. The included `render.yam
 
 Add `BOT_TOKEN_1` through `BOT_TOKEN_5` as secret environment variables in Render. Render does not need a port for this worker.
 
-For each application, open **Developer Portal > Application > Bot**, click **Reset Token**, copy the newly generated token, and paste only the token value into the matching Render variable. Do not paste the variable name, `BOT_TOKEN_1=`, quotation marks, an application ID, a client secret, or a user-account token. After saving the variables, use **Manual Deploy > Deploy latest commit**.
+For each application, open **Developer Portal > Application > Bot**, click **Reset Token**, copy the newly generated token, and paste only the token value into the matching Render variable. Do not paste the variable name, `BOT_TOKEN_1=`, an application ID, a client secret, or a user-account token. The service also removes accidental surrounding quotes, a `Bot ` prefix, or a trailing comma. After saving the variables, use **Manual Deploy > Deploy latest commit**.
 
 Before deploying, verify the GitHub repository contains these paths at its top level:
 
