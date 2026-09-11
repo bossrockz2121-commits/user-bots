@@ -1,0 +1,17 @@
+services:
+  - type: worker
+    name: five-discord-app-bots
+    runtime: node
+    buildCommand: npm ci
+    startCommand: npm start
+    envVars:
+      - key: BOT_TOKEN_1
+        sync: false
+      - key: BOT_TOKEN_2
+        sync: false
+      - key: BOT_TOKEN_3
+        sync: false
+      - key: BOT_TOKEN_4
+        sync: false
+      - key: BOT_TOKEN_5
+        sync: false
