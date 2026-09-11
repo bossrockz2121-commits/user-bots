@@ -26,6 +26,18 @@
       <p id="online">Loading...</p>
     </section>
     <section>
+      <strong>Voice channel connection</strong>
+      <p>Each bot can join a different server and voice channel. The bot must be invited to that server with Connect permission.</p>
+      <label for="voiceBot">Bot</label>
+      <select id="voiceBot"><option value="1">Bot 1</option><option value="2">Bot 2</option><option value="3">Bot 3</option><option value="4">Bot 4</option><option value="5">Bot 5</option></select>
+      <label for="guildId">Server ID</label>
+      <input id="guildId" inputmode="numeric" placeholder="123456789012345678">
+      <label for="voiceChannelId">Voice channel ID</label>
+      <input id="voiceChannelId" inputmode="numeric" placeholder="123456789012345678">
+      <button id="connectVoice">Join voice channel</button>
+      <p id="voiceStatus"></p>
+    </section>
+    <section>
       <label for="adminToken">Web admin token</label>
       <input id="adminToken" type="password" autocomplete="off">
       <label>Bots to use</label>
@@ -47,8 +59,13 @@
       async function refresh() {
         const response = await fetch('/api/bots');
         const bots = await response.json();
-        document.querySelector('#online').textContent = bots.filter((bot) => bot.online).map((bot) => `Bot ${bot.number}: ${bot.tag}`).join('\n') || 'No bots online';
+        document.querySelector('#online').textContent = bots.filter((bot) => bot.online).map((bot) => `Bot ${bot.number}: ${bot.tag}${bot.voiceConnected ? ` | voice: ${bot.voiceChannelId}` : ''}`).join('\n') || 'No bots online';
       }
+      document.querySelector('#connectVoice').addEventListener('click', async () => {
+        const response = await fetch('/api/voice/connect', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${document.querySelector('#adminToken').value}` }, body: JSON.stringify({ botNumber: Number(document.querySelector('#voiceBot').value), guildId: document.querySelector('#guildId').value, voiceChannelId: document.querySelector('#voiceChannelId').value }) });
+        document.querySelector('#voiceStatus').textContent = JSON.stringify(await response.json(), null, 2);
+        refresh();
+      });
       document.querySelector('#send').addEventListener('click', async () => {
         const botNumbers = [...document.querySelectorAll('.bots input:checked')].map((input) => Number(input.value));
         const response = await fetch('/api/broadcast', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${document.querySelector('#adminToken').value}` }, body: JSON.stringify({ botNumbers, channelId: document.querySelector('#channelId').value, content: document.querySelector('#content').value }) });

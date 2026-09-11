@@ -1,6 +1,7 @@
 require('dotenv').config();
 
 const { Client, Events, GatewayIntentBits, SlashCommandBuilder } = require('discord.js');
+const { joinVoiceChannel } = require('@discordjs/voice');
 const express = require('express');
 const path = require('node:path');
 
@@ -18,6 +19,8 @@ function readToken(name) {
 const botTokens = Array.from({ length: 5 }, (_, index) => ({
   number: index + 1,
   token: readToken(`BOT_TOKEN_${index + 1}`),
+  guildId: readToken(`GUILD_ID_${index + 1}`),
+  voiceChannelId: readToken(`VOICE_CHANNEL_ID_${index + 1}`),
 }));
 
 const commands = [
@@ -48,7 +51,47 @@ app.get('/api/bots', (request, response) => {
     number: client.botNumber,
     online: client.isReady(),
     tag: client.user?.tag || null,
+    voiceConnected: Boolean(client.voiceConnection),
+    guildId: client.voiceGuildId || null,
+    voiceChannelId: client.voiceChannelId || null,
   })));
+});
+
+async function connectToVoice(client, guildId, voiceChannelId) {
+  const guild = await client.guilds.fetch(guildId);
+  const channel = await guild.channels.fetch(voiceChannelId);
+  if (!channel?.isVoiceBased()) {
+    throw new Error('The channel ID is not a voice channel.');
+  }
+
+  client.voiceConnection?.destroy();
+  client.voiceConnection = joinVoiceChannel({
+    channelId: channel.id,
+    guildId: guild.id,
+    adapterCreator: guild.voiceAdapterCreator,
+    selfDeaf: false,
+  });
+  client.voiceGuildId = guild.id;
+  client.voiceChannelId = channel.id;
+}
+
+app.post('/api/voice/connect', async (request, response) => {
+  if (!isAuthorized(request)) {
+    return response.status(401).json({ error: 'Unauthorized' });
+  }
+
+  const { botNumber, guildId, voiceChannelId } = request.body || {};
+  const client = clients.find((candidate) => candidate.botNumber === Number(botNumber));
+  if (!client?.isReady() || !/^\d{17,20}$/.test(String(guildId)) || !/^\d{17,20}$/.test(String(voiceChannelId))) {
+    return response.status(400).json({ error: 'Choose an online bot and provide valid server and voice channel IDs.' });
+  }
+
+  try {
+    await connectToVoice(client, guildId, voiceChannelId);
+    return response.json({ ok: true, botNumber: client.botNumber, guildId, voiceChannelId });
+  } catch (error) {
+    return response.status(400).json({ error: error.message });
+  }
 });
 
 app.post('/api/broadcast', async (request, response) => {
@@ -80,13 +123,13 @@ app.post('/api/broadcast', async (request, response) => {
 
 app.listen(port, () => console.log(`Web dashboard listening on port ${port}.`));
 
-async function createBot({ number, token }) {
+async function createBot({ number, token, guildId, voiceChannelId }) {
   if (!token) {
     console.warn(`Bot ${number}: BOT_TOKEN_${number} is missing; skipped.`);
     return false;
   }
 
-  const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+  const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates] });
   client.botNumber = number;
 
   client.once(Events.ClientReady, async (readyClient) => {
@@ -109,6 +152,10 @@ async function createBot({ number, token }) {
   clients.push(client);
   try {
     await client.login(token);
+    if (guildId && voiceChannelId) {
+      await connectToVoice(client, guildId, voiceChannelId);
+      console.log(`Bot ${number}: joined voice channel ${voiceChannelId} in server ${guildId}.`);
+    }
     return true;
   } catch (error) {
     console.error(`Bot ${number}: login failed for a ${token.length}-character value.`, error.message);
