@@ -23,6 +23,23 @@ npm start
 
 Each online bot registers `/ping`. Run `/ping` in a server where that bot was invited.
 
+## Render deployment
+
+This is a Discord background worker, not a web service. The included `render.yaml` expects the Render **Root Directory** to be blank (the repository root), with `npm ci` as the build command and `npm start` as the start command. If configuring the service manually, use those same values. Do not use `node src/src/index.js` or set the Root Directory to `src` while keeping `node src/index.js`.
+
+Add `BOT_TOKEN_1` through `BOT_TOKEN_5` as secret environment variables in Render. Render does not need a port for this worker.
+
+Before deploying, verify the GitHub repository contains these paths at its top level:
+
+```text
+package.json
+package-lock.json
+src/index.js
+render.yaml
+```
+
+If the Render service was created manually, update its settings in **Settings > Build & Deploy**, save them, and trigger a new deploy. Existing service settings can override `render.yaml` until the service is recreated from the Blueprint.
+
 ## Security
 
 Never commit `.env`, paste tokens into chat, or put tokens in source code. If a token is exposed, reset it immediately in the Developer Portal.
