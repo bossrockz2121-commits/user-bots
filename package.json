@@ -1,0 +1,18 @@
+{
+  "name": "five-discord-app-bots",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Run five compliant Discord application bots from one Node.js service.",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "engines": {
+    "node": ">=18.17.0"
+  },
+  "dependencies": {
+    "discord.js": "^14.21.0",
+    "dotenv": "^16.6.1"
+  }
+}
