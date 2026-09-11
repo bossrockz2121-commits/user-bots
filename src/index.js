@@ -2,9 +2,14 @@ require('dotenv').config();
 
 const { Client, Events, GatewayIntentBits, SlashCommandBuilder } = require('discord.js');
 
+function readToken(name) {
+  const value = process.env[name]?.trim();
+  return value?.replace(/^['"]|['"]$/g, '').trim();
+}
+
 const botTokens = Array.from({ length: 5 }, (_, index) => ({
   number: index + 1,
-  token: process.env[`BOT_TOKEN_${index + 1}`]?.trim(),
+  token: readToken(`BOT_TOKEN_${index + 1}`),
 }));
 
 const commands = [
@@ -15,10 +20,10 @@ const commands = [
 
 const clients = [];
 
-function createBot({ number, token }) {
+async function createBot({ number, token }) {
   if (!token) {
     console.warn(`Bot ${number}: BOT_TOKEN_${number} is missing; skipped.`);
-    return null;
+    return false;
   }
 
   const client = new Client({ intents: [GatewayIntentBits.Guilds] });
@@ -40,22 +45,28 @@ function createBot({ number, token }) {
     await interaction.reply(`Pong from bot ${number}.`);
   });
 
-  client.login(token).catch((error) => {
-    console.error(`Bot ${number}: login failed. Check its application token.`, error.message);
-  });
-
   clients.push(client);
-  return client;
+  try {
+    await client.login(token);
+    return true;
+  } catch (error) {
+    console.error(`Bot ${number}: login failed for a ${token.length}-character value.`, error.message);
+    client.destroy();
+    return false;
+  }
 }
 
-for (const bot of botTokens) {
-  createBot(bot);
-}
+(async () => {
+  const results = await Promise.all(botTokens.map(createBot));
+  const successfulLogins = results.filter(Boolean).length;
 
-if (clients.length === 0) {
-  console.error('No bots started. Copy .env.example to .env and add fresh application bot tokens.');
-  process.exitCode = 1;
-}
+  if (successfulLogins === 0) {
+    console.error('No bots started. In Render, set each variable to the fresh token value from that application\'s Bot page.');
+    process.exitCode = 1;
+  } else {
+    console.log(`${successfulLogins} of ${botTokens.length} bot(s) logged in successfully.`);
+  }
+})();
 
 async function shutdown(signal) {
   console.log(`Received ${signal}; logging out bots.`);
