@@ -1,6 +1,8 @@
 require('dotenv').config();
 
 const { Client, Events, GatewayIntentBits, SlashCommandBuilder } = require('discord.js');
+const express = require('express');
+const path = require('node:path');
 
 function readToken(name) {
   let value = process.env[name]?.trim();
@@ -25,6 +27,58 @@ const commands = [
 ].map((command) => command.toJSON());
 
 const clients = [];
+const app = express();
+const port = Number(process.env.PORT) || 10000;
+const adminToken = readToken('WEB_ADMIN_TOKEN');
+
+app.use(express.json({ limit: '16kb' }));
+app.use(express.static(path.join(__dirname, '..', 'public')));
+
+function isAuthorized(request) {
+  const authorization = request.headers.authorization || '';
+  return Boolean(adminToken) && authorization === `Bearer ${adminToken}`;
+}
+
+app.get('/health', (request, response) => {
+  response.json({ ok: true, onlineBots: clients.filter((client) => client.isReady()).length });
+});
+
+app.get('/api/bots', (request, response) => {
+  response.json(clients.map((client) => ({
+    number: client.botNumber,
+    online: client.isReady(),
+    tag: client.user?.tag || null,
+  })));
+});
+
+app.post('/api/broadcast', async (request, response) => {
+  if (!isAuthorized(request)) {
+    return response.status(401).json({ error: 'Unauthorized' });
+  }
+
+  const { botNumbers, channelId, content } = request.body || {};
+  if (!Array.isArray(botNumbers) || !botNumbers.length || !/^\d{17,20}$/.test(String(channelId)) || typeof content !== 'string' || !content.trim() || content.length > 2000) {
+    return response.status(400).json({ error: 'Provide botNumbers, a Discord channelId, and content up to 2000 characters.' });
+  }
+
+  const selected = clients.filter((client) => botNumbers.includes(client.botNumber) && client.isReady());
+  const results = await Promise.all(selected.map(async (client) => {
+    try {
+      const channel = await client.channels.fetch(channelId);
+      if (!channel?.isTextBased() || typeof channel.send !== 'function') {
+        throw new Error('Channel is not a writable text channel.');
+      }
+      await channel.send({ content: content.trim() });
+      return { number: client.botNumber, sent: true };
+    } catch (error) {
+      return { number: client.botNumber, sent: false, error: error.message };
+    }
+  }));
+
+  return response.json({ results });
+});
+
+app.listen(port, () => console.log(`Web dashboard listening on port ${port}.`));
 
 async function createBot({ number, token }) {
   if (!token) {
@@ -33,6 +87,7 @@ async function createBot({ number, token }) {
   }
 
   const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+  client.botNumber = number;
 
   client.once(Events.ClientReady, async (readyClient) => {
     try {

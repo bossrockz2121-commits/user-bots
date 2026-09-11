@@ -25,7 +25,7 @@ Each online bot registers `/ping`. Run `/ping` in a server where that bot was in
 
 ## Render deployment
 
-This is a Discord background worker, not a web service. The included `render.yaml` expects the Render **Root Directory** to be blank (the repository root), with `npm ci` as the build command and `npm start` as the start command. If configuring the service manually, use those same values. Do not use `node src/src/index.js` or set the Root Directory to `src` while keeping `node src/index.js`.
+The included `render.yaml` configures a Render web service so the dashboard is reachable. It expects the **Root Directory** to be blank (the repository root), with `npm ci` as the build command and `npm start` as the start command. If configuring the service manually, use those same values. Do not use `node src/src/index.js` or set the Root Directory to `src` while keeping `node src/index.js`.
 
 Add `BOT_TOKEN_1` through `BOT_TOKEN_5` as secret environment variables in Render. Render does not need a port for this worker.
 
